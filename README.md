@@ -240,4 +240,4 @@ I ensured the scroll performance was smooth across:
 
 ---
 
-Thank you for reviewing this submission!
+Thank you for reviewing this submission.
