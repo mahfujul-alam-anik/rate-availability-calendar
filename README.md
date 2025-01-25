@@ -194,35 +194,9 @@ I ensured the scroll performance was smooth across:
 
 ---
 
-## Submission Process
+## Project Live Link
 
-### Steps to Submit the Project
-
-1. **Fork the Repository:**
-
-   - Fork the provided GitHub repository.
-
-2. **Create a New Branch:**
-
-   ```bash
-   git checkout -b feature/infinite-scroll
-   ```
-
-3. **Commit and Push Changes:**
-
-   ```bash
-   git commit -m "Implemented infinite scrolling and optimized scroll performance"
-   git push origin feature/infinite-scroll
-   ```
-
-4. **Deploy to Vercel:**
-
-   - Login to [Vercel](https://vercel.com) and deploy the project.
-
-5. **Submit Submission:**
-   - Send the following links via email to `mustakim@grit.com.bd`:
-     - Forked GitHub repository link
-     - Live Vercel deployment link
+https://rate-availability-calendar-seven.vercel.app/
 
 ---
 
