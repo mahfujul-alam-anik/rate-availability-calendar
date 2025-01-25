@@ -1,122 +1,243 @@
 # Project Documentation
 
-## Overview
+## Setup Instructions
 
-This project is part of the Grit System Technical Assessment for Front-End Engineers. The main objective is to enhance the calendar component by implementing infinite scrolling using a cursor query parameter in the `useRoomRateAvailabilityCalendar` query. Additionally, the candidate will optimize the horizontal scroll behavior of the calendar to ensure smooth and responsive navigation.
+Follow the steps below to set up and run the project successfully:
 
-### Existing Code and Behavior
+### 1. Clone the Repository
 
-The existing codebase includes a calendar component that displays room rate availability data for a specified date range. The data is fetched using the `useRoomRateAvailabilityCalendar` hook, which retrieves the data from an API endpoint. The calendar component supports horizontal scrolling to navigate through the dates.
+```bash
+git clone <repository-url>
+cd <project-directory>
+```
 
-### Goal for the Candidate
+### 2. Install Dependencies
 
-The candidate is required to:
+```bash
+npm install
+```
 
-1. Implement infinite scrolling for the calendar component by converting the `useRoomRateAvailabilityCalendar` query to use infinite queries with a cursor query parameter.
-2. Optimize the horizontal scroll behavior of the calendar to ensure smooth and responsive scrolling.
-3. Update the project documentation to reflect the changes made.
+### 3. Configure Environment Variables
 
-## Rate Calendar API Documentation
+Create a `.env` file in the project root and add the following:
 
-### Base URL
+```env
+NEXT_PUBLIC_BACKEND_URL=https://beta.api.bytebeds.com
+```
 
-`https://beta.api.bytebeds.com`
+### 4. Run the Project
 
-### Endpoint
+```bash
+npm start
+```
 
-`GET /api/v1/property/{property_id}/rate-calendar/assessment`
+The application should now be running successfully.
 
-### Query Parameters
+---
 
-- `property_id` (number): The ID of the property.
-- `start_date` (string): The start date for the calendar data in YYYY-MM-DD format.
-- `end_date` (string): The end date for the calendar data in YYYY-MM-DD format.
-- `cursor` (number, optional): The cursor for pagination, used for infinite scrolling.
+## Infinite Scrolling Implementation
 
-### Response
+### Objective
 
-The response contains the following structure:
+The goal was to implement infinite scrolling for the **Room Rate Availability Calendar**, ensuring that additional data loads dynamically as the user scrolls.
 
-```json
+### Approach
+
+I utilized **React Query's `useInfiniteQuery`** to fetch paginated data efficiently and implemented an intersection observer to trigger data loading when the user reaches the end of the list.
+
+### Code Implementation
+
+#### Using `useInfiniteQuery`
+
+The `useRoomRateAvailabilityCalendar` custom hook now utilizes `useInfiniteQuery` from React Query to fetch paginated data efficiently.
+
+```tsx
+return useInfiniteQuery<IResponse>({
+  queryKey: ["property_room_calendar", params],
+  queryFn: async ({ pageParam = 1 }) => {
+    const url = new URL(
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/property/${params.property_id}/rate-calendar/assessment`
+    );
+    url.search = new URLSearchParams({
+      start_date: params.start_date,
+      end_date: params.end_date,
+      cursor: String(pageParam),
+    }).toString();
+
+    const response = await Fetch<IResponse>({ method: "GET", url });
+    return response.data ?? response;
+  },
+  initialPageParam: 1,
+  getNextPageParam: (lastPage) => lastPage?.nextCursor ?? null,
+});
+```
+
+#### Fetching Next Page Data
+
+I implemented a `fetchNextPage` function to load new data when the end of the content is in view.
+
+```tsx
+const fetchNextPage = useCallback(() => {
+  if (room_calendar.hasNextPage && !room_calendar.isFetchingNextPage) {
+    room_calendar.fetchNextPage();
+  }
+}, [room_calendar]);
+```
+
+#### Infinite Scrolling Logic
+
+I leveraged the `inView` property to detect when the user reaches the bottom and trigger the next page fetch.
+
+```tsx
+useEffect(() => {
+  const pages = room_calendar?.data?.pages;
+
+  // Check if any page has an empty room_categories array
+  const hasEmptyCategory = pages?.some(
+    (page) => page.room_categories.length === 0
+  );
+
+  if (inView && !hasEmptyCategory) {
+    fetchNextPage();
+  }
+}, [inView, fetchNextPage, room_calendar]);
+```
+
+#### Rendering Data with Infinite Scroll
+
+```tsx
 {
-  "room_categories": [
-    {
-      "id": "string",
-      "name": "string",
-      "occupancy": "number",
-      "inventory_calendar": [
-        {
-          "id": "string",
-          "date": "string",
-          "available": "number",
-          "status": "boolean",
-          "booked": "number"
-        }
-      ],
-      "rate_plans": [
-        {
-          "id": "number",
-          "name": "string",
-          "calendar": [
-            {
-              "id": "string",
-              "date": "string",
-              "rate": "number",
-              "min_length_of_stay": "number",
-              "reservation_deadline": "number"
-            }
-          ]
-        }
-      ]
-    }
-  ],
-  "nextCursor": "number"
+  room_calendar?.data?.pages.map((page, pageIndex) => (
+    <div key={pageIndex}>
+      {page.room_categories.map((room_category, categoryIndex) => (
+        <RoomRateAvailabilityCalendar
+          key={categoryIndex}
+          index={categoryIndex}
+          InventoryRefs={InventoryRefs}
+          isLastElement={categoryIndex === page.room_categories.length - 1}
+          room_category={room_category}
+          handleCalenderScroll={handleCalenderScroll}
+        />
+      ))}
+    </div>
+  ));
+}
+
+{
+  /* Observer Element */
+}
+{
+  room_calendar.isSuccess && room_calendar.data?.pages?.length > 0 && (
+    <div ref={ref}></div>
+  );
 }
 ```
 
-### Postman Collection
+#### Loading Indicator
 
-You can find a working Postman collection for this API [here](https://www.postman.com/blue-star-32935/workspace/grit-system/request/26020074-3b661363-f648-4233-9020-4a1264b0d9e7?action=share&creator=26020074&ctx=documentation).
+```tsx
+{
+  room_calendar.isLoading ||
+    (room_calendar?.isFetchingNextPage && (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100%",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    ));
+}
+```
 
-## Instructions for the Candidate
+---
 
-1. **Setup the Project:**
+## Scroll Performance Optimization
 
-   - Clone the repository from the provided URL.
-   - Install the necessary dependencies using `npm install`.
-   - Set up the environment variable `NEXT_PUBLIC_BACKEND_URL` with the base URL `https://beta.api.bytebeds.com`.
-   - Ensure the project runs successfully by executing `npm start`.
+### Objective
 
-2. **Implement Infinite Scrolling:**
+The existing horizontal scroll behavior had performance issues such as lagging and unresponsiveness. I optimized it to ensure a smooth and responsive scrolling experience.
 
-   - Locate the `useRoomRateAvailabilityCalendar` query in the codebase.
-   - Convert this query to use infinite queries with a `cursor` query parameter.
-   - Ensure that the calendar component can load more data as the user scrolls vertically.
+### Optimizations Applied
 
-3. **Optimize Scroll Behavior:**
+1. **CSS Enhancements:**
 
-   - Analyze the current implementation of the calendar's horizontal scroll behavior.
-   - Identify the causes of the laggy scroll performance.
-   - Optimize the scroll behavior to ensure it is smooth and responsive.
-   - Test the scroll performance on different devices and screen sizes to ensure consistency.
+   - Added `scroll-behavior: smooth` to improve smooth scrolling.
+   - Implemented `-Ibkit-overflow-scrolling: touch` for better mobile support.
 
-4. **Documentation:**
+   ```css
+   html {
+     max-width: 100vw;
+     overflow-x: hidden;
+     scroll-behavior: smooth;
+     -webkit-overflow-scrolling: touch;
+   }
+   ```
 
-   - Update the project documentation to reflect the changes made.
-   - Include any necessary instructions for future developers on how to maintain or extend the infinite scrolling functionality.
+   **How `useInfiniteQuery` Helps Optimize Scroll Performance:**
 
-5. **Submission:**
-   - Fork the repository and complete the assessment on your fork.
-   - Commit your changes to a new branch and push it to your forked repository.
-   - Host the project on Vercel/CodeSandbox and share the live link.
-   - Share the link to your forked repository and the live link via email at mustakim@grit.com.bd.
+- Efficient Data Fetching: Loads data in chunks to prevent UI freezes.
+- Automatic Fetching on Demand: Triggers requests only when necessary.
+- Cache Management: Ensures previously loaded data remains available.
+- Parallel Fetching & Background Updates: Allows smooth UI interactions.
+- Pagination Control: Manages cursor efficiently to prevent redundant calls.
 
-**Deadline: 30 January 2025**
+### Testing
 
-## Additional Notes
+I ensured the scroll performance was smooth across:
 
-- Pay attention to code quality and follow best practices for React and JavaScript development.
-- Consider edge cases and error handling to ensure a robust implementation.
-- Feel free to reach out if you have any questions or need further clarification on the requirements.
+- Different devices (desktop, tablet, mobile)
+- Various browsers (Chrome, Firefox, Safari)
 
-Good luck, and we look forward to reviewing your implementation!
+---
+
+## Submission Process
+
+### Steps to Submit the Project
+
+1. **Fork the Repository:**
+
+   - Fork the provided GitHub repository.
+
+2. **Create a New Branch:**
+
+   ```bash
+   git checkout -b feature/infinite-scroll
+   ```
+
+3. **Commit and Push Changes:**
+
+   ```bash
+   git commit -m "Implemented infinite scrolling and optimized scroll performance"
+   git push origin feature/infinite-scroll
+   ```
+
+4. **Deploy to Vercel:**
+
+   - Login to [Vercel](https://vercel.com) and deploy the project.
+
+5. **Submit Submission:**
+   - Send the following links via email to `mustakim@grit.com.bd`:
+     - Forked GitHub repository link
+     - Live Vercel deployment link
+
+---
+
+## Future Improvements
+
+- Implement virtualized rendering for improved performance.
+- Enhance accessibility features for better UX.
+- Add unit tests to validate infinite scrolling logic.
+
+---
+
+### Author
+
+**Mahfujul Alam Anik**
+
+---
+
+Thank you for reviewing this submission!

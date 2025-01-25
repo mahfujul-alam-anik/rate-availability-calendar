@@ -39,6 +39,8 @@ import RoomRateAvailabilityCalendar from "./(components)/RoomCalendar";
 import Navbar from "@/components/Navbar";
 import useRoomRateAvailabilityCalendar from "./(hooks)/useRoomRateAvailabilityCalendar";
 
+import { useInView } from "react-intersection-observer";
+
 // Define the form type for the date range picker
 export type CalendarForm = {
   date_range: DateRange<dayjs.Dayjs>;
@@ -64,6 +66,9 @@ export default function Page() {
   const calenderDatesRef = useRef<FixedSizeGrid | null>(null);
   const mainGridContainerRef = useRef<HTMLDivElement | null>(null);
   const InventoryRefs = useRef<Array<RefObject<VariableSizeGrid>>>([]);
+
+  // Tracks if the referenced element is in the viewport using Intersection Observer API.
+  const { ref, inView } = useInView();
 
   // Handle horizontal scroll for dates
   const handleDatesScroll = useCallback(({ scrollLeft }: GridOnScrollProps) => {
@@ -164,6 +169,29 @@ export default function Page() {
       : watchedDateRange[0]!.add(2, "month")
     ).format("YYYY-MM-DD"),
   });
+
+  // Callback to fetch the next page of room calendar data
+  const fetchNextPage = useCallback(() => {
+    if (room_calendar.hasNextPage && !room_calendar.isFetchingNextPage) {
+      room_calendar.fetchNextPage();
+    }
+  }, [room_calendar]);
+
+  // Effect to fetch the next page when the element is in view and no empty categories exist.
+
+  useEffect(() => {
+    const pages = room_calendar?.data?.pages;
+
+    // Check if any page has an empty room_categories array
+    const hasEmptyCategory = pages?.some(
+      (page) => page.room_categories.length === 0
+    );
+
+    // Fetch next page if in view and no empty categories
+    if (inView && !hasEmptyCategory) {
+      fetchNextPage();
+    }
+  }, [inView, fetchNextPage, room_calendar]);
 
   // Component to render each month row in the calendar
   const MonthRow: React.FC<ListChildComponentProps> = memo(function MonthRowFC({
@@ -356,36 +384,46 @@ export default function Page() {
             </Grid>
           </Grid>
 
-          {room_calendar.isSuccess
-            ? room_calendar.data.data.room_categories.map(
-                (room_category, key) => (
-                  <RoomRateAvailabilityCalendar
-                    key={key}
-                    index={key}
-                    InventoryRefs={InventoryRefs}
-                    isLastElement={
-                      key === room_calendar.data.data.room_categories.length - 1
-                    }
-                    room_category={room_category}
-                    handleCalenderScroll={handleCalenderScroll}
-                  />
-                )
-              )
-            : null}
-          {room_calendar.isLoading && (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                height: "100%",
-              }}
-            >
-              <CircularProgress />
-            </Box>
+          {room_calendar?.data?.pages.map((page, pageIndex) => (
+            <div key={pageIndex}>
+              {/* Iterate over room_categories for each page */}
+              {page.room_categories.map((room_category, categoryIndex) => (
+                <RoomRateAvailabilityCalendar
+                  key={categoryIndex}
+                  index={categoryIndex}
+                  InventoryRefs={InventoryRefs}
+                  isLastElement={
+                    categoryIndex === page.room_categories.length - 1
+                  }
+                  room_category={room_category}
+                  handleCalenderScroll={handleCalenderScroll}
+                />
+              ))}
+            </div>
+          ))}
+
+          {/* an empty div to tract the viewport */}
+          {room_calendar.isSuccess && room_calendar.data?.pages?.length > 0 && (
+            <div ref={ref}></div>
           )}
+
+          {/* Loader when fetching next pages or loading state true */}
+          {room_calendar.isLoading ||
+            (room_calendar?.isFetchingNextPage && (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: "100%",
+                }}
+              >
+                <CircularProgress />
+              </Box>
+            ))}
         </Card>
       </Box>
+
       <Box
         component="footer"
         sx={{

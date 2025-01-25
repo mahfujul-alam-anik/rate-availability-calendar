@@ -1,9 +1,7 @@
 // Import necessary modules and types
 import Fetch from "@/utils/Fetch";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Dayjs } from "dayjs";
-
-// ToDo: Add infinite query support
 
 // Define interfaces for the data structures used in the calendar
 export interface IRoomInventory {
@@ -51,29 +49,42 @@ interface IParams {
 
 interface IResponse {
   room_categories: Array<IRoomCategoryCalender>;
-  nextCursor?: number; // available if you pass a cursor as query param
+  nextCursor?: number; // Available if you pass a cursor as a query param
 }
 
-// Custom hook to fetch room rate availability calendar data
+// Custom hook to fetch room rate availability calendar data with infinite scrolling
 export default function useRoomRateAvailabilityCalendar(params: IParams) {
-  // Construct the URL with query parameters
-  const url = new URL(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/property/${params.property_id}/rate-calendar/assessment`
-  );
+  return useInfiniteQuery<IResponse>({
+    // Unique query key to identify the query and enable caching
+    queryKey: ["property_room_calendar", params],
 
-  url.search = new URLSearchParams({
-    start_date: params.start_date,
-    end_date: params.end_date,
-    // cursor: "0", // for infinite scroll
-  }).toString();
+    // Function to fetch paginated room rate calendar data
+    queryFn: async ({ pageParam = 1 }) => {
+      const url = new URL(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/property/${params.property_id}/rate-calendar/assessment`
+      );
 
-  // Use React Query's useQuery hook to fetch data
-  return useQuery({
-    queryKey: ["property_room_calendar", params], // Unique query key
-    queryFn: async () =>
-      await Fetch<IResponse>({
+      // Append query parameters to the URL (start & end dates and pagination cursor)
+      url.search = new URLSearchParams({
+        start_date: params.start_date,
+        end_date: params.end_date,
+        cursor: String(pageParam),
+      }).toString();
+
+      // Fetch data from API using the helper function
+      const response = await Fetch<IResponse>({
         method: "GET",
         url,
-      }), // Fetch data from the API
+      });
+
+      // Return fetched data, ensuring it conforms to IResponse structure
+      return response.data ?? response;
+    },
+
+    // Initial page parameter (cursor starts from page 1)
+    initialPageParam: 1,
+
+    // Function to determine the next page's cursor from the last fetched page
+    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? null,
   });
 }
