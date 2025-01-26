@@ -196,7 +196,7 @@ I ensured the scroll performance was smooth across:
 
 ## Project Live Link
 
-https://rate-availability-calendar-seven.vercel.app/
+https://rate-availability-calendar-ecru.vercel.app/
 
 ---
 
