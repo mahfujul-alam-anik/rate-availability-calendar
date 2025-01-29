@@ -376,6 +376,8 @@ export default function Page() {
                     ref={calenderDatesRef}
                     outerRef={mainGridContainerRef}
                     onScroll={handleDatesScroll}
+                    overscanColumnCount={7} // Pre-renders 7 extra columns
+                    overscanRowCount={7} // Pre-renders 7 extra rows
                   >
                     {DateRow}
                   </FixedSizeGrid>
