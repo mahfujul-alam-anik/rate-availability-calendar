@@ -163,7 +163,34 @@ The existing horizontal scroll behavior had performance issues such as lagging a
 
 ### Optimizations Applied
 
-1. **CSS Enhancements:**
+1. **Pre-render column and row:**
+
+   - Added `overscanColumnCount` and `overscanRowCount` to pre-render the data for next scroll and interact.
+   - Adjusted the value based on Data quality and quantity, Maybe possible to make more faster if could play around with value.
+
+   ```tsx
+   <AutoSizer>
+     {({ height, width }) => (
+       <FixedSizeGrid
+         height={height}
+         width={width}
+         columnCount={calenderDates.length}
+         columnWidth={74}
+         rowCount={1}
+         rowHeight={37}
+         ref={calenderDatesRef}
+         outerRef={mainGridContainerRef}
+         onScroll={handleDatesScroll}
+         overscanColumnCount={7} // Pre-renders 7 extra columns
+         overscanRowCount={7} // Pre-renders 7 extra rows
+       >
+         {DateRow}
+       </FixedSizeGrid>
+     )}
+   </AutoSizer>
+   ```
+
+2. **CSS Enhancements:**
 
    - Added `scroll-behavior: smooth` to improve smooth scrolling.
    - Implemented `-Ibkit-overflow-scrolling: touch` for better mobile support.
